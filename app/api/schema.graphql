@@ -1,0 +1,79 @@
+scalar Date
+
+type Query {
+  users(filter: UserFilter): [User]!
+}
+
+type Mutation {
+  createUser(input: UserInput!): UserPayload
+  updateUser(input: UserInput!): UserPayload
+  createItem(input: ItemInput!): ItemPayload
+  updateItem(input: ItemUpdateInput!): ItemPayload
+}
+
+"""
+**User** type description
+"""
+type User {
+  dbid: Int!
+  name: String!
+  email: String!
+  is_active: Boolean
+  is_superuser: Boolean
+  items: [Item]
+}
+
+input UserFilter {
+  name_like: String
+  email_is: String
+  dbid_is: Int
+}
+
+"""
+**User** input type description
+"""
+input UserInput {
+  name: String!
+  email: String!
+  password: String!
+}
+
+type UserPayload {
+  status: Boolean!
+  error: String
+  user: User
+}
+
+"""
+**Item** type description
+"""
+type Item {
+  dbid: Int!
+  title: String
+  description: String
+  posted_on: Date
+}
+
+"""
+**Item** input type description
+"""
+input ItemInput {
+  owner_dbid: Int!
+  title: String!
+  description: String
+}
+
+"""
+**Item** update input type description
+"""
+input ItemUpdateInput {
+  dbid: Int!
+  title: String
+  description: String
+}
+
+type ItemPayload {
+  status: Boolean!
+  error: String
+  item: Item
+}

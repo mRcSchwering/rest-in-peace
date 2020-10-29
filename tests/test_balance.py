@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore
 from tests.conftest import query
 
 

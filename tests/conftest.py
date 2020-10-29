@@ -7,10 +7,11 @@ Assumes that app is running on `http://localhost:8000`.
 Overwrite with environment var `HOST`.
 """
 import os
+import datetime as dt
 import requests
 from sqlalchemy.orm.session import close_all_sessions  # type: ignore
-from app.db import SessionLocal, engine
-import app.models as models
+from app.db.base import SessionLocal, engine
+import app.db.models as models
 
 host = os.environ.get("HOST", "http://localhost:8000")
 db = SessionLocal()
@@ -56,16 +57,28 @@ def reset_testdata():
     db.add_all(
         [
             models.Item(
-                title="Harry's shampoo", description="Smells good", owner_dbid=1
+                title="Harry's shampoo",
+                description="Smells good",
+                owner_dbid=1,
+                posted_on=dt.date(2000, 1, 1),
             ),
             models.Item(
                 title="Harry's hairbrush",
                 description="For hairy situations",
                 owner_dbid=1,
+                posted_on=dt.date(2000, 12, 11),
             ),
-            models.Item(title="Joe's pen", description="Long forgotten", owner_dbid=2),
             models.Item(
-                title="Susi's apple", description="Shouldn't eat anymore", owner_dbid=3
+                title="Joe's pen",
+                description="Long forgotten",
+                owner_dbid=2,
+                posted_on=dt.date(2001, 7, 1),
+            ),
+            models.Item(
+                title="Susi's apple",
+                description="Shouldn't eat anymore",
+                owner_dbid=3,
+                posted_on=dt.date(2001, 9, 1),
             ),
         ]
     )

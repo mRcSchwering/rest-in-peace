@@ -5,9 +5,9 @@ alembic: alembic's env.py needs the declarative base for `target_metadata = Base
 Dont forget to also import this model definition after importing the declarative
 base in env.py.
 """
-from sqlalchemy import Column, ForeignKey, Integer, String, Text, Boolean  # type: ignore
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, Boolean, Date  # type: ignore
 from sqlalchemy.orm import relationship  # type: ignore
-from app.db import Base
+from app.db.base import Base
 
 
 class User(Base):
@@ -29,5 +29,6 @@ class Item(Base):
     dbid = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(Text)
+    posted_on = Column(Date)
 
     owner_dbid = Column(Integer, ForeignKey("users.dbid"), nullable=False)
