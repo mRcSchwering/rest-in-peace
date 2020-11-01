@@ -28,8 +28,9 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.db import Base  # noqa pylint: disable=import-error,wrong-import-position
-import app.models as models  # noqa pylint: disable=import-error,wrong-import-position,unused-import
+from app.db.base import Base  # noqa pylint: disable=import-error,wrong-import-position
+import app.db.models as models  # noqa pylint: disable=import-error,wrong-import-position,unused-import
+
 target_metadata = Base.metadata
 
 
@@ -75,18 +76,14 @@ def run_migrations_online():
 
     """
     engine_config = config.get_section(config.config_ini_section)
-    engine_config['sqlalchemy.url'] = URL
+    engine_config["sqlalchemy.url"] = URL
 
     connectable = engine_from_config(
-        engine_config,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+        engine_config, prefix="sqlalchemy.", poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

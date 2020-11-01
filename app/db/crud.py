@@ -28,13 +28,16 @@ def read_users(
     return query.all()
 
 
-def create_user(db: Session, email: str, name: str, password: str) -> dict:
+def get_user_by_email(db: Session, email: str) -> Union[models.User, None]:
+    return db.query(models.User).filter(models.User.email == email).first()
+
+
+def create_user(db: Session, email: str, name: str, hashed_password: str) -> dict:
     db_obj = db.query(models.User).filter(models.User.email == email).first()
     if db_obj is not None:
         return _get_payload(error="user exists")
-    hashed_pw = "fake-hashed-" + password
     db_obj = models.User(
-        name=name, email=email, hashed_password=hashed_pw, is_active=True,
+        name=name, email=email, hashed_password=hashed_password, is_active=True,
     )
     db.add(db_obj)
     db.commit()
@@ -46,14 +49,14 @@ def update_user(
     db: Session,
     email: Union[str, None] = None,
     name: Union[str, None] = None,
-    password: Union[str, None] = None,
+    hashed_password: Union[str, None] = None,
 ) -> dict:
     db_obj = db.query(models.User).filter(models.User.email == email).first()
     if db_obj is None:
         return _get_payload(error="user doesnt exist")
 
-    if password is not None:
-        db_obj.hashed_password = "fake-hashed-" + password
+    if hashed_password is not None:
+        db_obj.hashed_password = hashed_password
     if name is not None:
         db_obj.name = name
     db.add(db_obj)

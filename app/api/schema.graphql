@@ -5,6 +5,7 @@ type Query {
 }
 
 type Mutation {
+  login(input: LoginInput!): TokenPayload
   createUser(input: UserInput!): UserPayload
   updateUser(input: UserInput!): UserPayload
   createItem(input: ItemInput!): ItemPayload
@@ -38,10 +39,21 @@ input UserInput {
   password: String!
 }
 
+input LoginInput {
+  email: String!
+  password: String!
+}
+
 type UserPayload {
   status: Boolean!
   error: String
   user: User
+}
+
+type TokenPayload {
+  status: Boolean!
+  error: String
+  token: String
 }
 
 """
