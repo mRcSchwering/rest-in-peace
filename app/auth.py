@@ -1,23 +1,32 @@
+"""
+Authentication and authorization related stuff
+
+Im writing hashed passwords to the DB and comparing hashes.
+As auth method I'm validating JWTs which can be provided to the
+user via some login endpoint.
+JWT carries a username and a scope.
+
+I'm using a starlette authentication middleware.
+Unfortunately starlette makes it hard to add custom objects
+to the request, that's why I have to construct some
+work-around classes.
+"""
 import logging
 from typing import List, Optional
 import datetime as dt
 from starlette.requests import HTTPConnection  # type: ignore
-from starlette.authentication import (  # type: ignore
-    AuthenticationBackend,
-    SimpleUser,
-    AuthCredentials,
-)
+from starlette.authentication import AuthenticationBackend, AuthCredentials  # type: ignore
 from passlib.context import CryptContext  # type: ignore
 from jose import JWTError, jwt  # type: ignore
 from app.config import AUTH_SECRET_KEY, AUTH_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.exceptions import TokenValidationFailed
+from app.db.base import get_db
+import app.db.crud as crud
+import app.db.models as models
 
 
 _log = logging.getLogger(__name__)
 _crpt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-class TokenValidationFailed(Exception):
-    pass
 
 
 class TokenData:
@@ -58,22 +67,44 @@ def validate_access_token(token: str) -> TokenData:
         )
         username: str = payload["sub"]
     except (JWTError, KeyError) as err:
-        raise TokenValidationFailed from err
+        raise TokenValidationFailed(msg=f"Decoding failed: {err}") from err
     return TokenData(username=username, scopes=payload.get("scopes", []))
+
+
+class Auth:
+    """
+    Auth object to be passed over by the AuthBackend middleware.
+    
+    I need a separate object for this because if the AuthBackend
+    returns `None` it will be converted to an (incompatible)
+    `UnauthenticatedUser` object. Using this object basically as
+    a container i.o. to also transport a `None`.
+
+    Args:
+        user: db user obj of an authenticated user
+    """
+
+    def __init__(self, user: Optional[models.User] = None):
+        self.is_authenticated = False if user is None else True
+        self.user = user
 
 
 class AuthBackend(AuthenticationBackend):
     """
-    Middleware backend for OAuth2 Acc. Token validation
+    Middleware backend for JWT validation
 
     If Bearer token exists, validate it and add authenticated user to
-    request.user. If not, add unauthenticated user (happens implicitly
-    when returning None)
+    request.user. If not, have a `None` user (wrapped in `Auth`).
+
+    Will be accessible in resolver's GraphQLResolveInfo:
+        auth: Auth = info.context["request"].user
+        auth.is_authenticated
+        auth.user
     """
 
     async def authenticate(self, conn: HTTPConnection):
         if "Authorization" not in conn.headers:
-            return
+            return None, Auth()
 
         auth = conn.headers["Authorization"]
 
@@ -82,17 +113,15 @@ class AuthBackend(AuthenticationBackend):
             if scheme.lower() == "bearer":
                 try:
                     data = validate_access_token(token=credentials)
-                except TokenValidationFailed as err:
-                    _log.info(
-                        "Authorization header existed but token validation failed: %s",
-                        err,
-                    )
-                    return
+                except TokenValidationFailed:
+                    return [], Auth()
             else:
                 _log.info("Authorization header existed but no Bearer was found")
-                return
+                return [], Auth()
         except ValueError:
             _log.info("Authorization header existed but no scheme was found")
-            return
+            return [], Auth()
 
-        return AuthCredentials(scopes=data.scopes), SimpleUser(username=data.username)
+        with get_db() as db:
+            db_user = crud.get_user_by_email(db=db, email=data.username)
+        return AuthCredentials(scopes=data.scopes), Auth(db_user)

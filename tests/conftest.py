@@ -10,11 +10,11 @@ import os
 import datetime as dt
 import requests
 from sqlalchemy.orm.session import close_all_sessions  # type: ignore
-from app.db.base import SessionLocal, engine
+from app.db.base import SessionFact, engine
 import app.db.models as models
 
 host = os.environ.get("HOST", "http://localhost:8000")
-db = SessionLocal()
+db = SessionFact()
 
 
 def query(querystr: str) -> requests.Response:
@@ -33,21 +33,21 @@ def reset_testdata():
             models.User(
                 name="Active Harry",
                 email="active.harry@gmail.com",
-                hashed_password="asdf1",
+                hashed_password="$2b$12$.We4evbzf63bYRNaBlPnYuC/uu6SY5zgDCJGx7DtRyPkiRBrQ751u",  # asdf1
                 is_active=True,
                 is_superuser=False,
             ),
             models.User(
                 name="Inactive Joe",
                 email="inactive.joe@gmail.com",
-                hashed_password="asdf2",
+                hashed_password="$2b$12$Od2WGjAOV1ByeQUEz05NIepeR4XQPjanVzM2Cl4.KMLb/C60Nzf7O",  # asdf2
                 is_active=False,
                 is_superuser=False,
             ),
             models.User(
                 name="Super Susi",
                 email="super.susi@gmail.com",
-                hashed_password="asdf3",
+                hashed_password="$2b$12$gV0ulQXEARykTw4I7QTTYOyH4gYR12WoO/fN8BeZzsc5x9Jlyh4va",  # asdf3
                 is_active=True,
                 is_superuser=True,
             ),

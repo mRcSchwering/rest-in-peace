@@ -16,9 +16,9 @@ type Mutation {
 **User** type description
 """
 type User {
-  dbid: Int!
+  dbid: Int
   name: String!
-  email: String!
+  email: String
   is_active: Boolean
   is_superuser: Boolean
   items: [Item]

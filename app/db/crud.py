@@ -1,22 +1,28 @@
-"""Create, read, update, delete"""
-from typing import List, Union
+"""Create, read, update, delete in database"""
+from typing import List, Union, Optional, Dict
 import datetime as dt
 from sqlalchemy.orm import Session  # type: ignore
+from app.exceptions import Exists, NotFound
 from app.db import models
 
+_restr_access: Dict[str, List[str]] = {
+    "users": ["is_superuser", "email", "hashed_password"],
+    "items": [],
+}
 
-def _get_payload(error: Union[None, str] = None, obj: Union[dict, None] = None) -> dict:
-    out = {"status": True if error is None else False, "error": error}
-    if obj is not None:
-        out.update(obj)
-    return out
+
+def _filter_cols(db_objs: list, table_name: str):
+    for db_obj in db_objs:
+        for colname in _restr_access[table_name]:
+            setattr(db_obj, colname, None)
 
 
 def read_users(
     db: Session,
-    name_like: Union[str, None] = None,
-    email_is: Union[str, None] = None,
-    dbid_is: Union[str, None] = None,
+    name_like: Optional[str] = None,
+    email_is: Optional[str] = None,
+    dbid_is: Optional[str] = None,
+    sess_user: Optional[models.User] = None,
 ) -> List[models.User]:
     query = db.query(models.User)
     if name_like is not None:
@@ -25,24 +31,29 @@ def read_users(
         query = query.filter(models.User.email == email_is)
     if dbid_is is not None:
         query = query.filter(models.User.dbid == dbid_is)
-    return query.all()
+    db_objs = query.all()
+    if sess_user is None or not sess_user.is_superuser:
+        _filter_cols(db_objs=db_objs, table_name="users")
+    return db_objs
 
 
 def get_user_by_email(db: Session, email: str) -> Union[models.User, None]:
     return db.query(models.User).filter(models.User.email == email).first()
 
 
-def create_user(db: Session, email: str, name: str, hashed_password: str) -> dict:
+def create_user(
+    db: Session, email: str, name: str, hashed_password: str
+) -> models.User:
     db_obj = db.query(models.User).filter(models.User.email == email).first()
     if db_obj is not None:
-        return _get_payload(error="user exists")
+        raise Exists(msg="user exists")
     db_obj = models.User(
         name=name, email=email, hashed_password=hashed_password, is_active=True,
     )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
-    return _get_payload(obj={"user": db_obj})
+    return db_obj
 
 
 def update_user(
@@ -50,10 +61,10 @@ def update_user(
     email: Union[str, None] = None,
     name: Union[str, None] = None,
     hashed_password: Union[str, None] = None,
-) -> dict:
+) -> models.User:
     db_obj = db.query(models.User).filter(models.User.email == email).first()
     if db_obj is None:
-        return _get_payload(error="user doesnt exist")
+        raise NotFound(msg="user doesnt exist")
 
     if hashed_password is not None:
         db_obj.hashed_password = hashed_password
@@ -62,11 +73,15 @@ def update_user(
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
-    return _get_payload(obj={"user": db_obj})
+    return db_obj
 
 
-def read_items(db: Session, **kwarg_filters) -> List[models.Item]:
+def read_items(
+    db: Session, sess_user: Optional[models.User] = None, **kwarg_filters
+) -> List[models.Item]:
     res = db.query(models.Item).filter_by(**kwarg_filters)
+    if sess_user is None or not sess_user.is_superuser:
+        _filter_cols(db_objs=res, table_name="items")
     return res.all()
 
 
@@ -75,19 +90,19 @@ def create_item(
     owner_dbid: int,
     title: Union[None, str] = None,
     description: Union[str, None] = None,
-) -> dict:
+) -> models.Item:
     """Create new item for owner"""
     today = dt.datetime.now().date()
     db_owner = db.query(models.User).filter(models.User.dbid == owner_dbid).first()
     if db_owner is None:
-        return _get_payload(error="owner_dbid doesnt exist")
+        raise NotFound(msg="owner_dbid doesnt exist")
     db_obj = models.Item(
         title=title, description=description, owner_dbid=owner_dbid, posted_on=today
     )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
-    return _get_payload(obj={"item": db_obj})
+    return db_obj
 
 
 def update_item(
@@ -95,11 +110,11 @@ def update_item(
     dbid: int,
     title: Union[None, str] = None,
     description: Union[str, None] = None,
-) -> dict:
+) -> models.Item:
     """Update existing item based on dbid"""
     db_obj = db.query(models.Item).filter(models.Item.dbid == dbid).first()
     if db_obj is None:
-        return _get_payload(error="item doesnt exist")
+        raise NotFound(msg="item doesnt exist")
     if title is not None:
         db_obj.title = title
     if description is not None:
@@ -107,4 +122,4 @@ def update_item(
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
-    return _get_payload(obj={"item": db_obj})
+    return db_obj
