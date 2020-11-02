@@ -1,3 +1,8 @@
 ariadne==0.*
 python-jose==3.*
 passlib==1.*
+psycopg2==2.*
+pytest==6.*
+alembic==1.*
+gunicorn==20.*
+uvloop==0.*

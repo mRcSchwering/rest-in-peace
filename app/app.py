@@ -9,7 +9,6 @@ from app.api.resolvers import OBJ_TYPES
 from app.config import VERSION
 from app.auth import AuthBackend
 
-# TODO: revisit docker images
 # TODO: implement some tests
 # TODO: test if whole auth/filter fields is easier in ariadne
 
