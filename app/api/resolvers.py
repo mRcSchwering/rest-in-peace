@@ -63,7 +63,7 @@ def parse_datetime_value(d: str) -> dt.date:
 
 @query.field("users")
 def resolve_users(_, info: GraphQLResolveInfo, **kwargs) -> List[models.User]:
-    auth: Auth = info.context["request"].user
+    auth: Auth = info.context["auth"]
     filters = kwargs.get("filter", {})
     with get_db() as db:
         return crud.read_users(db=db, sess_user=auth.user, **filters)
@@ -120,7 +120,7 @@ def resolve_update_user(*_, **kwargs) -> Payload:
 def resolve_items(
     owner: models.User, info: GraphQLResolveInfo, **kwargs
 ) -> List[models.Item]:
-    auth: Auth = info.context["request"].user
+    auth: Auth = info.context["auth"]
     with get_db() as db:
         return crud.read_items(db=db, sess_user=auth.user, owner_dbid=owner.dbid)
 

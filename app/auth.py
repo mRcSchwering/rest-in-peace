@@ -12,7 +12,7 @@ to the request, that's why I have to construct some
 work-around classes.
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 import datetime as dt
 from starlette.requests import HTTPConnection  # type: ignore
 from starlette.authentication import AuthenticationBackend, AuthCredentials  # type: ignore
@@ -84,7 +84,29 @@ class Auth:
         user: db user obj of an authenticated user
     """
 
-    def __init__(self, user: Optional[models.User] = None):
+    def _user_from_auth(self, auth: Union[str, None]) -> Union[None, models.User]:
+        if auth is None:
+            return None
+        try:
+            scheme, credentials = auth.split()
+            if scheme.lower() == "bearer":
+                try:
+                    data = validate_access_token(token=credentials)
+                except TokenValidationFailed:
+                    return None
+            else:
+                _log.info("Authorization header existed but no Bearer was found")
+                return None
+        except ValueError:
+            _log.info("Authorization header existed but no scheme was found")
+            return None
+
+        with get_db() as db:
+            db_user = crud.get_user_by_email(db=db, email=data.username)
+        return db_user
+
+    def __init__(self, auth: str):
+        user = self._user_from_auth(auth)
         self.is_authenticated = False if user is None else True
         self.user = user
 
