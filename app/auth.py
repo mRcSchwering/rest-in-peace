@@ -12,10 +12,8 @@ to the request, that's why I have to construct some
 work-around classes.
 """
 import logging
-from typing import List, Optional, Union
+from typing import Union
 import datetime as dt
-from starlette.requests import HTTPConnection  # type: ignore
-from starlette.authentication import AuthenticationBackend, AuthCredentials  # type: ignore
 from passlib.context import CryptContext  # type: ignore
 from jose import JWTError, jwt  # type: ignore
 from app.config import AUTH_SECRET_KEY, AUTH_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -29,16 +27,6 @@ _log = logging.getLogger(__name__)
 _crpt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-class TokenData:
-    """Container for username and scopes"""
-
-    _default_scopes = ["authenticated"]
-
-    def __init__(self, username: str, scopes: Optional[List[str]] = None):
-        self.username = username
-        self.scopes = self._default_scopes if scopes is None else scopes
-
-
 def hash_password(plain: str) -> str:
     """get password hash"""
     return _crpt_context.hash(plain)
@@ -49,18 +37,19 @@ def password_matches(plain, hashed) -> bool:
     return _crpt_context.verify(plain, hashed)
 
 
-def create_access_token(token_data: TokenData) -> str:
+def create_access_token(username: str) -> str:
     """Create JWT with username as sub"""
+    scopes = ["user:authenticated"]
     expire = dt.datetime.utcnow() + dt.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        claims={"sub": token_data.username, "scopes": token_data.scopes, "exp": expire},
+        claims={"sub": username, "scopes": scopes, "exp": expire},
         key=AUTH_SECRET_KEY,
         algorithm=AUTH_ALGORITHM,
     )
 
 
-def validate_access_token(token: str) -> TokenData:
-    """Validate access token and return TokenData"""
+def validate_access_token(token: str) -> str:
+    """Validate access token and return username"""
     try:
         payload = jwt.decode(
             token=token, key=AUTH_SECRET_KEY, algorithms=[AUTH_ALGORITHM]
@@ -68,7 +57,7 @@ def validate_access_token(token: str) -> TokenData:
         username: str = payload["sub"]
     except (JWTError, KeyError) as err:
         raise TokenValidationFailed(msg=f"Decoding failed: {err}") from err
-    return TokenData(username=username, scopes=payload.get("scopes", []))
+    return username
 
 
 class Auth:
@@ -91,7 +80,7 @@ class Auth:
             scheme, credentials = auth.split()
             if scheme.lower() == "bearer":
                 try:
-                    data = validate_access_token(token=credentials)
+                    username = validate_access_token(token=credentials)
                 except TokenValidationFailed:
                     return None
             else:
@@ -102,48 +91,10 @@ class Auth:
             return None
 
         with get_db() as db:
-            db_user = crud.get_user_by_email(db=db, email=data.username)
+            db_user = crud.get_user_by_email(db=db, email=username)
         return db_user
 
     def __init__(self, auth: str):
         user = self._user_from_auth(auth)
         self.is_authenticated = False if user is None else True
         self.user = user
-
-
-class AuthBackend(AuthenticationBackend):
-    """
-    Middleware backend for JWT validation
-
-    If Bearer token exists, validate it and add authenticated user to
-    request.user. If not, have a `None` user (wrapped in `Auth`).
-
-    Will be accessible in resolver's GraphQLResolveInfo:
-        auth: Auth = info.context["request"].user
-        auth.is_authenticated
-        auth.user
-    """
-
-    async def authenticate(self, conn: HTTPConnection):
-        if "Authorization" not in conn.headers:
-            return None, Auth()
-
-        auth = conn.headers["Authorization"]
-
-        try:
-            scheme, credentials = auth.split()
-            if scheme.lower() == "bearer":
-                try:
-                    data = validate_access_token(token=credentials)
-                except TokenValidationFailed:
-                    return [], Auth()
-            else:
-                _log.info("Authorization header existed but no Bearer was found")
-                return [], Auth()
-        except ValueError:
-            _log.info("Authorization header existed but no scheme was found")
-            return [], Auth()
-
-        with get_db() as db:
-            db_user = crud.get_user_by_email(db=db, email=data.username)
-        return AuthCredentials(scopes=data.scopes), Auth(db_user)

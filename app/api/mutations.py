@@ -1,35 +1,14 @@
 """
-GraphQL definitions
-
-
-
-Get selected fields from GraphQLResolveInfo, example:
-
-    load_items = False
-    if info.field_nodes[0].selection_set is not None:
-        for node in info.field_nodes[0].selection_set.selections:
-            a_field = node.name.value
+Mutation resolvers
 """
-from typing import Any, List, Dict, Optional
-import datetime as dt
-from ariadne import QueryType, MutationType, ObjectType, ScalarType  # type: ignore
-from ariadne.types import GraphQLResolveInfo  # type: ignore
+from typing import Any, Dict, Optional
+from ariadne import MutationType  # type: ignore
 from app.exceptions import NotFound, Exists
 from app.db.base import get_db
-import app.db.models as models
 import app.db.crud as crud
-from app.auth import (
-    password_matches,
-    create_access_token,
-    TokenData,
-    hash_password,
-    Auth,
-)
+from app.auth import password_matches, create_access_token, hash_password
 
-query = QueryType()
 mutation = MutationType()
-user = ObjectType("User")
-date_scalar = ScalarType("Date")
 
 
 class Payload:
@@ -51,24 +30,6 @@ class Payload:
                 setattr(self, k, d)
 
 
-@date_scalar.serializer
-def serialize_datetime(d: dt.date) -> str:
-    return d.strftime("%Y-%m-%d")
-
-
-@date_scalar.value_parser
-def parse_datetime_value(d: str) -> dt.date:
-    return dt.datetime.strptime(d, "%Y-%m-%d").date()
-
-
-@query.field("users")
-def resolve_users(_, info: GraphQLResolveInfo, **kwargs) -> List[models.User]:
-    auth: Auth = info.context["auth"]
-    filters = kwargs.get("filter", {})
-    with get_db() as db:
-        return crud.read_users(db=db, sess_user=auth.user, **filters)
-
-
 @mutation.field("login")
 def resolve_login(*_, **kwargs) -> Payload:
     email = kwargs["input"]["email"]
@@ -81,8 +42,7 @@ def resolve_login(*_, **kwargs) -> Payload:
     ):
         return Payload(error="email or password wrong")
 
-    data = TokenData(username=db_user.name, scopes=["authenticated"])
-    token = create_access_token(token_data=data)
+    token = create_access_token(username=db_user.email)
     return Payload(objs={"token": token})
 
 
@@ -116,15 +76,6 @@ def resolve_update_user(*_, **kwargs) -> Payload:
     return Payload(objs={"user": db_user})
 
 
-@user.field("items")
-def resolve_items(
-    owner: models.User, info: GraphQLResolveInfo, **kwargs
-) -> List[models.Item]:
-    auth: Auth = info.context["auth"]
-    with get_db() as db:
-        return crud.read_items(db=db, sess_user=auth.user, owner_dbid=owner.dbid)
-
-
 @mutation.field("createItem")
 def resolve_create_item(*_, **kwargs) -> Payload:
     with get_db() as db:
@@ -145,5 +96,5 @@ def resolve_update_item(*_, **kwargs) -> Payload:
     return Payload(objs={"item": db_item})
 
 
-OBJ_TYPES = [query, mutation, user, date_scalar]
+mutations = (mutation,)
 

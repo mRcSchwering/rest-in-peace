@@ -8,6 +8,7 @@ Overwrite with environment var `HOST`.
 """
 import os
 import datetime as dt
+import pytest  # type: ignore
 import requests
 from sqlalchemy.orm.session import close_all_sessions  # type: ignore
 from app.db.base import SessionFact, engine
@@ -17,9 +18,15 @@ host = os.environ.get("HOST", "http://localhost:8000")
 db = SessionFact()
 
 
-def query(querystr: str) -> requests.Response:
+def query(querystr: str, jwt: str = None) -> requests.Response:
     """Query GraphQL API, paste query string from GraphiQL"""
-    return requests.post(host + "/", json={"query": querystr}, timeout=1)
+    if jwt is not None:
+        headers = {"Authorization": f"Bearer {jwt}"}
+    else:
+        headers = {}
+    return requests.post(
+        host + "/", json={"query": querystr}, headers=headers, timeout=1
+    )
 
 
 def reset_testdata():
@@ -87,19 +94,16 @@ def reset_testdata():
     db.close()
 
 
-# TODO: There is an issue with changing the DB while the app
-#       is running. I think graphene keeps connections open.
-#       see: https://github.com/graphql-python/graphene-sqlalchemy/issues/292
-# @pytest.fixture(scope="module")
-# def reset():
-#     """
-#     Module scoped fixtures will be started once for every
-#     module, then run all tests in that module, then have
-#     the exit run once.
-#     """
-#     reset_testdata()
-#     yield
-#     reset_testdata()
+@pytest.fixture(scope="module")
+def reset():
+    """
+    Module scoped fixtures will be started once for every
+    module, then run all tests in that module, then have
+    the exit run once.
+    """
+    reset_testdata()
+    yield
+    reset_testdata()
 
 
 if __name__ == "__main__":

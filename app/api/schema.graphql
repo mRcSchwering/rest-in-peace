@@ -1,7 +1,11 @@
 scalar Date
 
+directive @superuser on FIELD_DEFINITION
+
 type Query {
+  me: User
   users(filter: UserFilter): [User]!
+  items(filter: ItemFilter): [Item]!
 }
 
 type Mutation {
@@ -18,9 +22,9 @@ type Mutation {
 type User {
   dbid: Int
   name: String!
-  email: String
+  email: String @superuser
   is_active: Boolean
-  is_superuser: Boolean
+  is_superuser: Boolean @superuser
   items: [Item]
 }
 
@@ -28,6 +32,23 @@ input UserFilter {
   name_like: String
   email_is: String
   dbid_is: Int
+}
+
+"""
+**Item** type description
+"""
+type Item {
+  dbid: Int!
+  title: String
+  description: String
+  posted_on: Date
+  owner: User
+}
+
+input ItemFilter {
+  dbid_is: Int
+  title_like: String
+  description_like: String
 }
 
 """
@@ -54,16 +75,6 @@ type TokenPayload {
   status: Boolean!
   error: String
   token: String
-}
-
-"""
-**Item** type description
-"""
-type Item {
-  dbid: Int!
-  title: String
-  description: String
-  posted_on: Date
 }
 
 """

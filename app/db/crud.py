@@ -1,28 +1,16 @@
 """Create, read, update, delete in database"""
-from typing import List, Union, Optional, Dict
+from typing import List, Union
 import datetime as dt
 from sqlalchemy.orm import Session  # type: ignore
 from app.exceptions import Exists, NotFound
 from app.db import models
 
-_restr_access: Dict[str, List[str]] = {
-    "users": ["is_superuser", "email", "hashed_password"],
-    "items": [],
-}
-
-
-def _filter_cols(db_objs: list, table_name: str):
-    for db_obj in db_objs:
-        for colname in _restr_access[table_name]:
-            setattr(db_obj, colname, None)
-
 
 def read_users(
     db: Session,
-    name_like: Optional[str] = None,
-    email_is: Optional[str] = None,
-    dbid_is: Optional[str] = None,
-    sess_user: Optional[models.User] = None,
+    name_like: Union[str, None] = None,
+    email_is: Union[str, None] = None,
+    dbid_is: Union[str, None] = None,
 ) -> List[models.User]:
     query = db.query(models.User)
     if name_like is not None:
@@ -32,8 +20,6 @@ def read_users(
     if dbid_is is not None:
         query = query.filter(models.User.dbid == dbid_is)
     db_objs = query.all()
-    if sess_user is None or not sess_user.is_superuser:
-        _filter_cols(db_objs=db_objs, table_name="users")
     return db_objs
 
 
@@ -77,12 +63,19 @@ def update_user(
 
 
 def read_items(
-    db: Session, sess_user: Optional[models.User] = None, **kwarg_filters
+    db: Session,
+    dbid_is: Union[int, None] = None,
+    title_like: Union[str, None] = None,
+    description_like: Union[str, None] = None,
 ) -> List[models.Item]:
-    res = db.query(models.Item).filter_by(**kwarg_filters)
-    if sess_user is None or not sess_user.is_superuser:
-        _filter_cols(db_objs=res, table_name="items")
-    return res.all()
+    query = db.query(models.Item)
+    if dbid_is is not None:
+        query = query.filter(models.Item.dbid == dbid_is)
+    if title_like is not None:
+        query = query.filter(models.Item.title.ilike(f"%{title_like}%"))
+    if description_like is not None:
+        query = query.filter(models.Item.description.ilike(f"%{description_like}%"))
+    return query.all()
 
 
 def create_item(
