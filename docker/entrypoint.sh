@@ -15,6 +15,6 @@ python alembic/test_alembic.py
 gunicorn \
   -k "uvicorn.workers.UvicornWorker" \
   -c "app/gunicorn_conf.py" \
-  "app.app:app"
+  "app.main:app"
 
 set +e

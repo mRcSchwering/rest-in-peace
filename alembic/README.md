@@ -2,17 +2,7 @@
 
 ## Init
 
-1. defined SQLAlchemy declerative base with some generic models
-1. `alembic init alembic`
-1. edit `.ini` with connection string
-1. edit `env.py` for autogenerate and adding repo directory to path
-1. also edited `env.py` to take a DB URI from env
-1. started a throwaway postgres db (empty)
-1. `alembic revision --autogenerate -m "init"`, checked migration scripts
-1. `alembic upgrade head`, checked table creation
-1. switch off db
-
-Throw away postgres db:
+E.g. in throw away postgres db:
 
 ```
 sudo docker run \
@@ -23,6 +13,16 @@ sudo docker run \
     -p "5432:5432" \
     postgres:12-alpine
 ```
+
+1. define SQLAlchemy declerative base with some generic models
+1. `alembic init alembic`
+1. edit `.ini` with connection string
+1. edit `env.py` for autogenerate and adding repo directory to path
+1. also edit `env.py` to take a DB URI from env
+1. start a throwaway postgres db (empty)
+1. `alembic revision --autogenerate -m "init"`, checked migration scripts
+1. `alembic upgrade head`, checked table creation
+1. switch off db
 
 ## Update Database Schema
 

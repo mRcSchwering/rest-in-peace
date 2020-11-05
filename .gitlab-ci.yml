@@ -1,0 +1,38 @@
+image: mrcschwering/docker-compose-in-docker
+
+services:
+  - docker:dind
+
+main:
+  only:
+    - master
+  script:
+    - echo "============================== Info =============================="
+    - pwd
+    - ls -la
+    - docker --version
+    - docker-compose --version
+    - docker ps -a
+    - docker images
+
+    - echo "============================== Docker Login =============================="
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+
+    - echo "============================== Build Test-Stack =============================="
+    - docker-compose -f docker/docker-compose-test.yml build
+
+    - echo "============================== Run Tests =============================="
+    - docker-compose -f docker/docker-compose-test.yml up --exit-code-from test
+
+    - echo "============================== Tag Previous Latest =============================="
+    # uncomment after 1st successful run
+    #- docker pull $CI_REGISTRY_IMAGE/app:latest
+    #- docker tag $CI_REGISTRY_IMAGE/app:latest $CI_REGISTRY_IMAGE/app:prev
+    #- docker push $CI_REGISTRY_IMAGE/app:prev
+
+    - echo "============================== Release New Latest =============================="
+    - docker tag app_testing $CI_REGISTRY_IMAGE/app:latest
+    - docker push $CI_REGISTRY_IMAGE/app:latest
+
+    - echo "============================== Trigger Next Step =============================="
+    - curl -X POST -F token="$SERVICE_TRIGGER" -F ref=master https://gitlab.com/api/v4/projects/<some-project>/trigger/pipeline

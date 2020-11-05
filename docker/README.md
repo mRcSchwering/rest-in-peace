@@ -2,15 +2,13 @@
 
 App itself is started with [entrypoint.sh](./entrypoint.sh) where it checks whether database and code are in sync.
 There is a `migrate` argument which triggers an alembic upgrade to the newest version.
-This is used for testing to upgrade a fesh database to current schema.
+This is used for testing, or to upgrade a fesh database to the current schema.
 I edited alembics environment to accept `SQLALCHEMY_DATABASE_URI`.
 
 ## Test Stack
 
 The test stack is defined in [docker-compose-test.yml](./docker-compose-test.yml).
-Currently both _app_ and _test_ use the same image.
-It's executed by [.gitlab-ci.yml](../.gitlab-ci.yml).
-Test it locally:
+Run it from CICD pipeline or locally:
 
 ```
 sudo docker-compose -f docker/docker-compose-test.yml build

@@ -1,13 +1,19 @@
 # Tests
 
-Upon starting the app ([start.sh](../start.sh)) a single alembic test will always check
-that database and code are in sync.
-I could treat this test differently and put it somewhere else.
-Currently both the actual _app_ and the testing service _test_ run with the same image
-so it doesnt really matter where that one test lives.
-
-Test:
+For local test suite start server with database server, then run pytest.
 
 ```
+sudo docker run \
+    --rm \
+    -e "POSTGRES_HOST_AUTH_METHOD=trust" \
+    -e "POSTGRES_DB=main" \
+    -e "POSTGRES_USER=postgres" \
+    -p "5432:5432" \
+    postgres:12-alpine
+...
+alembic upgrade head  # migrate db schema
+...
+uvicorn --host 0.0.0.0 --reload app.app:app  # start devel server
+...
 pytest tests/
 ```
