@@ -1,8 +1,9 @@
-"""Schema directives"""
+"""GraphQL schema directives"""
 from typing import Dict, Type
 from ariadne.types import GraphQLResolveInfo  # type: ignore
 from ariadne import SchemaDirectiveVisitor  # type: ignore
 from graphql import default_field_resolver
+from app.db.base import get_db
 from app.auth import Auth
 
 
@@ -14,10 +15,12 @@ class Superuser(SchemaDirectiveVisitor):
 
         def resolve_field(obj, info: GraphQLResolveInfo, **kwargs):
             result = original_resolver(obj, info, **kwargs)
-            auth: Auth = info.context["auth"]
-            if auth.user is not None and auth.user.is_superuser:
+
+            with get_db() as db:
+                auth = Auth.from_info(info=info, db=db)
+                if auth.user is None or not auth.user.isSuperuser:
+                    return None
                 return result
-            return None
 
         field.resolve = resolve_field
         return field

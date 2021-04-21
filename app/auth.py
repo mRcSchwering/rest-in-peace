@@ -1,12 +1,11 @@
 """
-Authentication and authorization related stuff
+Authentication and authorization
 
 Im writing hashed passwords to the DB and comparing hashes.
 As auth method I'm validating JWTs which can be provided to the
 user via some login endpoint.
 JWT carries a username and a scope.
 
-I'm using a starlette authentication middleware.
 Unfortunately starlette makes it hard to add custom objects
 to the request, that's why I have to construct some
 work-around classes.
@@ -16,8 +15,9 @@ from typing import Union
 import datetime as dt
 from passlib.context import CryptContext  # type: ignore
 from jose import JWTError, jwt  # type: ignore
+from ariadne.types import GraphQLResolveInfo  # type: ignore
+from sqlalchemy.orm import Session  # type: ignore
 from app.config import AUTH_SECRET_KEY, AUTH_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-from app.exceptions import TokenValidationFailed
 from app.db.base import get_db
 import app.db.crud as crud
 import app.db.models as models
@@ -56,7 +56,7 @@ def validate_access_token(token: str) -> str:
         )
         username: str = payload["sub"]
     except (JWTError, KeyError) as err:
-        raise TokenValidationFailed(msg=f"Decoding failed: {err}") from err
+        raise ValueError(f"Decoding failed: {err}") from err
     return username
 
 
@@ -67,13 +67,15 @@ class Auth:
     I need a separate object for this because if the AuthBackend
     returns `None` it will be converted to an (incompatible)
     `UnauthenticatedUser` object. Using this object basically as
-    a container i.o. to also transport a `None`.
+    a container i.e. to also transport a `None`.
 
     Args:
         user: db user obj of an authenticated user
     """
 
-    def _user_from_auth(self, auth: Union[str, None]) -> Union[None, models.User]:
+    def _user_from_auth(
+        self, db: Session, auth: Union[str, None]
+    ) -> Union[None, models.User]:
         if auth is None:
             return None
         try:
@@ -81,7 +83,7 @@ class Auth:
             if scheme.lower() == "bearer":
                 try:
                     username = validate_access_token(token=credentials)
-                except TokenValidationFailed:
+                except ValueError:
                     return None
             else:
                 _log.info("Authorization header existed but no Bearer was found")
@@ -94,7 +96,20 @@ class Auth:
             db_user = crud.get_user_by_email(db=db, email=username)
         return db_user
 
-    def __init__(self, auth: str):
-        user = self._user_from_auth(auth)
+    def __init__(self, db: Session, auth: str):
+        user = self._user_from_auth(db=db, auth=auth)
         self.is_authenticated = False if user is None else True
         self.user = user
+
+    @classmethod
+    def from_info(self, info: GraphQLResolveInfo, db: Session) -> "Auth":
+        """Init from a GraphQLResolveInfo"""
+        context = info.context
+        headers = context["request"].headers
+        context["auth"] = self(db=db, auth=headers.get("Authorization"))
+        return info.context["auth"]
+
+    def __repr__(self):
+        user = "" if self.user is None else self.user.email
+        return f"<Auth authenticated={self.is_authenticated} {user}>"
+

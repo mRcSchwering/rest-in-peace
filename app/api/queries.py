@@ -1,14 +1,6 @@
 """
 Query resolvers
-
-Get selected fields from GraphQLResolveInfo, example:
-
-    load_items = False
-    if info.field_nodes[0].selection_set is not None:
-        for node in info.field_nodes[0].selection_set.selections:
-            a_field = node.name.value
 """
-from typing import List, Union
 from ariadne import QueryType, ObjectType  # type: ignore
 from ariadne.types import GraphQLResolveInfo  # type: ignore
 from app.db.base import get_db
@@ -17,48 +9,40 @@ import app.db.crud as crud
 from app.auth import Auth
 
 query = QueryType()
-user_type = ObjectType("User")
+me_type = ObjectType("Me")
 item_type = ObjectType("Item")
 
 
 @query.field("me")
-def resolve_me(unused, info: GraphQLResolveInfo, **_) -> Union[None, models.User]:
+def resolve_me(unused, info: GraphQLResolveInfo, **_):
     del unused
-    auth: Auth = info.context["auth"]
-    if auth.user is not None:
-        with get_db() as db:
-            return crud.get_user_by_email(db=db, email=auth.user.email)
-    return None
 
-
-@query.field("users")
-def resolve_users(*_, **kwargs) -> List[models.User]:
-    filters = kwargs.get("filter", {})
     with get_db() as db:
-        return crud.read_users(db=db, **filters)
+        auth = Auth.from_info(info=info, db=db)
+        if auth.user is None:
+            raise ValueError("Not logged in")
+        return auth.user
 
 
-@user_type.field("items")
-def resolve_user_items(owner: models.User, **kwargs) -> List[models.Item]:
-    filters = kwargs.get("filter", {})
-    filters["dbid_is"] = owner.dbid
+@me_type.field("items")
+def resolve_my_items(parent: models.User, unused, **_):
+    del unused
     with get_db() as db:
-        return crud.read_items(db=db, **filters)
+        return crud.get_items_by_owner_id(db=db, ownerId=parent.id)
 
 
 @query.field("items")
-def resolve_items(*_, **kwargs) -> List[models.Item]:
+def resolve_items(*_, **kwargs):
     filters = kwargs.get("filter", {})
     with get_db() as db:
-        return crud.read_items(db=db, **filters)
+        return crud.get_items(db=db, **filters)
 
 
 @item_type.field("owner")
-def resolve_item_owner(item: models.Item, _, **kwargs) -> models.User:
-    filters = kwargs.get("filter", {})
-    filters["dbid_is"] = item.owner_dbid
+def resolve_item_owner(parent: models.Item, unused, **_):
+    del unused
     with get_db() as db:
-        return crud.read_users(db=db, **filters)[0]
+        return crud.get_user_by_id(db=db, id=parent.ownerId)
 
 
-queries = (query, user_type, item_type)
+queries = (query, me_type, item_type)

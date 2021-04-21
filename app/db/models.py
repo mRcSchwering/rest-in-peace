@@ -13,12 +13,12 @@ from app.db.base import Base
 class User(Base):
     __tablename__ = "users"
 
-    dbid = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
-    is_superuser = Column(Boolean, default=False)
+    hashedPassword = Column(String, nullable=False)
+    isActive = Column(Boolean, default=True)
+    isSuperuser = Column(Boolean, default=False)
 
     items = relationship("Item", backref="owner")
 
@@ -26,9 +26,9 @@ class User(Base):
 class Item(Base):
     __tablename__ = "items"
 
-    dbid = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(Text)
-    posted_on = Column(Date)
+    postedOn = Column(Date, nullable=False)
 
-    owner_dbid = Column(Integer, ForeignKey("users.dbid"), nullable=False)
+    ownerId = Column(Integer, ForeignKey("users.id"), nullable=False)

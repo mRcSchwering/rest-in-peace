@@ -8,7 +8,6 @@ Overwrite with environment var `HOST`.
 """
 import os
 import datetime as dt
-import pytest  # type: ignore
 import requests
 from sqlalchemy.orm.session import close_all_sessions  # type: ignore
 from app.db.base import SessionFact, engine
@@ -40,23 +39,23 @@ def reset_testdata():
             models.User(
                 name="Active Harry",
                 email="active.harry@gmail.com",
-                hashed_password="$2b$12$.We4evbzf63bYRNaBlPnYuC/uu6SY5zgDCJGx7DtRyPkiRBrQ751u",  # asdf1
-                is_active=True,
-                is_superuser=False,
+                hashedPassword="$2b$12$.We4evbzf63bYRNaBlPnYuC/uu6SY5zgDCJGx7DtRyPkiRBrQ751u",  # asdf1
+                isActive=True,
+                isSuperuser=False,
             ),
             models.User(
                 name="Inactive Joe",
                 email="inactive.joe@gmail.com",
-                hashed_password="$2b$12$Od2WGjAOV1ByeQUEz05NIepeR4XQPjanVzM2Cl4.KMLb/C60Nzf7O",  # asdf2
-                is_active=False,
-                is_superuser=False,
+                hashedPassword="$2b$12$Od2WGjAOV1ByeQUEz05NIepeR4XQPjanVzM2Cl4.KMLb/C60Nzf7O",  # asdf2
+                isActive=False,
+                isSuperuser=False,
             ),
             models.User(
                 name="Super Susi",
                 email="super.susi@gmail.com",
-                hashed_password="$2b$12$gV0ulQXEARykTw4I7QTTYOyH4gYR12WoO/fN8BeZzsc5x9Jlyh4va",  # asdf3
-                is_active=True,
-                is_superuser=True,
+                hashedPassword="$2b$12$gV0ulQXEARykTw4I7QTTYOyH4gYR12WoO/fN8BeZzsc5x9Jlyh4va",  # asdf3
+                isActive=True,
+                isSuperuser=True,
             ),
         ]
     )
@@ -66,44 +65,32 @@ def reset_testdata():
             models.Item(
                 title="Harry's shampoo",
                 description="Smells good",
-                owner_dbid=1,
-                posted_on=dt.date(2000, 1, 1),
+                ownerId=1,
+                postedOn=dt.date(2000, 1, 1),
             ),
             models.Item(
                 title="Harry's hairbrush",
                 description="For hairy situations",
-                owner_dbid=1,
-                posted_on=dt.date(2000, 12, 11),
+                ownerId=1,
+                postedOn=dt.date(2000, 12, 11),
             ),
             models.Item(
                 title="Joe's pen",
                 description="Long forgotten",
-                owner_dbid=2,
-                posted_on=dt.date(2001, 7, 1),
+                ownerId=2,
+                postedOn=dt.date(2001, 7, 1),
             ),
             models.Item(
                 title="Susi's apple",
                 description="Shouldn't eat anymore",
-                owner_dbid=3,
-                posted_on=dt.date(2001, 9, 1),
+                ownerId=3,
+                postedOn=dt.date(2001, 9, 1),
             ),
         ]
     )
 
     db.commit()
     db.close()
-
-
-@pytest.fixture(scope="module")
-def reset():
-    """
-    Module scoped fixtures will be started once for every
-    module, then run all tests in that module, then have
-    the exit run once.
-    """
-    reset_testdata()
-    yield
-    reset_testdata()
 
 
 if __name__ == "__main__":
