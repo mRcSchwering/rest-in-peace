@@ -59,11 +59,17 @@ def resolve_create_me(*_, **kwargs):
 
 @mutation.field("updateMe")
 def resolve_update_me(_, info: GraphQLResolveInfo, **kwargs):
+    inputs = kwargs.get("input", {})
     with get_db() as db:
         auth = Auth.from_info(info=info, db=db)
         if auth.user is None:
             raise ValueError("Not logged in")
-        return crud.update_user(db=db, user=auth.user, **kwargs.get("input", {}))
+        return crud.update_user(
+            db=db,
+            user=auth.user,
+            name=inputs.get("name", crud.Undefined),
+            isActive=inputs.get("isActive", crud.Undefined),
+        )
 
 
 @me_type.field("items")
@@ -84,12 +90,18 @@ def resolve_create_item(_, info: GraphQLResolveInfo, **kwargs):
 
 @mutation.field("updateItem")
 def resolve_update_item(_, info: GraphQLResolveInfo, **kwargs):
+    inputs = kwargs.get("input", {})
     with get_db() as db:
         auth = Auth.from_info(info=info, db=db)
         if auth.user is None:
             raise ValueError("Not logged in")
         return crud.update_item(
-            db=db, ownerId=auth.user.id, itemId=kwargs["id"], **kwargs.get("input", {})
+            db=db,
+            ownerId=auth.user.id,
+            itemId=kwargs["id"],
+            title=inputs.get("title", crud.Undefined),
+            description=inputs.get("description", crud.Undefined),
+            postedOn=inputs.get("postedOn", crud.Undefined),
         )
 
 

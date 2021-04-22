@@ -18,7 +18,6 @@ type Mutation {
 }
 
 input UpdateItemInput {
-  itemId: ID!
   title: String
   description: String
   postedOn: Date

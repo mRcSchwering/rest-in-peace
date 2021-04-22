@@ -5,6 +5,15 @@ from sqlalchemy.orm import Session  # type: ignore
 from app.db import models
 
 
+class Undefined:
+    """
+    Distinguish empty value (null) from missing value (undefined)
+    during update mutations. null will be None and means user wanted
+    to update this value to an empty value. Undefined means the user
+    does not want to update this value.
+    """
+
+
 def get_user_by_id(db: Session, id: int) -> models.User:
     return db.query(models.User).filter(models.User.id == id).first()
 
@@ -92,9 +101,9 @@ def update_user(
 ) -> models.User:
     db_obj = user
 
-    if name is not None:
+    if name is not Undefined:
         db_obj.name = name
-    if isActive is not None:
+    if isActive is not Undefined:
         db_obj.isActive = isActive
 
     db.add(db_obj)
@@ -118,11 +127,11 @@ def update_item(
     if db_obj.ownerId != ownerId:
         raise ValueError(f"Item with id {itemId} does not belong to you")
 
-    if title is not None:
+    if title is not Undefined:
         db_obj.title = title
-    if description is not None:
+    if description is not Undefined:
         db_obj.description = description
-    if postedOn is not None:
+    if postedOn is not Undefined:
         db_obj.postedOn = postedOn
 
     db.add(db_obj)
